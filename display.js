@@ -27,5 +27,9 @@ class Display {
             this.ctx.canvas.width = window.innerWidth;
             this.ctx.canvas.height = window.innerWidth / ar;
         }
+
+        // doesn't work in constructor, moved here
+        this.buf.imageSmoothingEnabled = false;
+		this.ctx.imageSmoothingEnabled = false;
     }
 }
