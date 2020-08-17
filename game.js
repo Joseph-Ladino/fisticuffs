@@ -1,4 +1,14 @@
-/* globals Vec */
+/* globals Vec Collider */
+
+class Sprite {
+	constructor(url, width, height, mirrored = false) {
+		this.img = new Image();
+		this.width = width;
+		this.height = height;
+		this.mirrored = mirrored;
+		this.img.src = url;
+	}
+}
 
 class Entity {
 	constructor(x, y, width, height) {
@@ -6,7 +16,7 @@ class Entity {
 		this.sze = new Vec(width, height);
 		this.vel = new Vec(0, 0);
 
-		// previous x,y 
+		// previous x,y
 		this.pre = new Vec(x, y);
 
 		// interpolated x,y
@@ -49,8 +59,6 @@ class Entity {
 		// this.tmp.x = this.pos.x * alpha + this.pre.x * (1 - alpha);
 		// this.tmp.y = this.pos.y * alpha + this.pre.y * (1 - alpha);
 
-		
-
 		this.tmp = this.pos.mlts(alpha).add(this.pre.mlts(1 - alpha));
 	}
 
@@ -74,12 +82,27 @@ class Character extends Entity {
 		this.canJump = false;
 
 		// friction but in the air
-		this.airDrag = 0.98;
-		
+		this.airDrag = 0.95;
+
 		this.speed;
 		this.gndSpeed = 5;
 		this.airSpeed = 0.5;
-		this.jmpSpeed = this.sze.y / 7;
+		this.jmpSpeed = 20;
+
+		// for sprites
+		this.mirrored = false;
+		this.sprite = new Sprite("./assets/temp.png", this.sze.x, this.sze.y);
+	}
+
+	draw(buf) {
+		if(!this.mirrored) buf.drawImage(this.sprite.img, 0, 0, this.sprite.img.width, this.sprite.img.height, this.tmp.x, this.tmp.y, this.sprite.width, this.sprite.height);
+		else {
+			buf.save();
+			buf.translate(this.tmp.x + this.sze.x, this.tmp.y);
+			buf.scale(-1, 1);
+			buf.drawImage(this.sprite.img, 0, 0, this.sprite.img.width, this.sprite.img.height, 0, 0, this.sprite.width, this.sprite.height);
+			buf.restore();
+		}
 	}
 
 	update(gravity, friction) {
@@ -96,26 +119,31 @@ class Character extends Entity {
 
 		this.applyPhysics(gravity, this.canJump ? friction : this.airDrag);
 
+		if(Math.abs(this.vel.x) < 0.02) this.vel.x = 0;
+
+		this.mirrored = this.vel.x < 0 ? true : this.vel.x > 0 ? false : this.mirrored;
+		
 		this.pos = this.pos.add(this.vel);
 	}
 }
 
 class World {
-	constructor(buf, width, height, tileSize) {
+	constructor(buf, width, height) {
 		this.buf = buf;
 		this.buf.canvas.width = width;
 		this.buf.canvas.height = height;
 
 		this.width = width;
 		this.height = height;
-		this.tileSize = tileSize;
-		this.twidth = width / tileSize;
-		this.theight = height / tileSize;
 
-		this.gravity = 2;
+		// set in main after load
+		this.level = undefined;
+
+		this.gravity = 3;
 		this.friction = 0.7;
 
-		this.player1 = new Character(0, 0, 70, 200);
+		this.collider = new Collider();
+		this.player1 = new Character(0, 0, 30, 80);
 		this.players = [this.player1];
 		this.entities = [];
 
@@ -145,6 +173,8 @@ class World {
 		for (let p of this.players) {
 			if (this.collideViewport) {
 				p.update(this.gravity, this.friction);
+
+				this.collider.collide(p, this.level);
 
 				if (p.right > this.width) {
 					p.right = this.width;

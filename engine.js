@@ -86,7 +86,7 @@ class Engine {
 			this.elapsed += this.delta;
 
 			this.display.clear();
-			this.display.drawBackground();
+			this.display.drawBackground(world.level.image);
 
 			while (this.elapsed >= this.tick) {
 				this.elapsed -= this.tick;
