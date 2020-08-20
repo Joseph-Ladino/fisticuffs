@@ -1,4 +1,4 @@
-/* globals Vec Collider */
+/* globals Vec Rect Collider world */
 
 class Sprite {
 	constructor(url, width, height, mirrored = false) {
@@ -10,10 +10,9 @@ class Sprite {
 	}
 }
 
-class Entity {
+class Entity extends Rect {
 	constructor(x, y, width, height) {
-		this.pos = new Vec(x, y);
-		this.sze = new Vec(width, height);
+		super(new Vec(x, y), new Vec(width, height));
 		this.vel = new Vec(0, 0);
 
 		// previous x,y
@@ -23,48 +22,30 @@ class Entity {
 		this.tmp = new Vec(0, 0);
 	}
 
-	get left() {
-		return this.pos.x;
-	}
+	get boundingBox() {
+		let out = new Rect(new Vec(0, 0), new Vec(0, 0));
 
-	get right() {
-		return this.pos.x + this.sze.x;
-	}
+		if (this.vel.x > 0) {
+			out.pos.x = this.pos.x;
+			out.sze.x = this.sze.x + this.vel.x;
+		} else {
+			out.pos.x = this.pos.x + this.vel.x;
+			out.sze.x = this.sze.x - this.vel.x;
+		}
 
-	get top() {
-		return this.pos.y;
-	}
+		if (this.vel.y > 0) {
+			out.pos.y = this.pos.y;
+			out.sze.y = this.sze.y + this.vel.y;
+		} else {
+			out.pos.y = this.pos.y + this.vel.y;
+			out.sze.y = this.sze.y - this.vel.y;
+		}
 
-	get bottom() {
-		return this.pos.y + this.sze.y;
-	}
-
-	set left(x) {
-		this.pos.x = x;
-	}
-
-	set right(x) {
-		this.pos.x = x - this.sze.x;
-	}
-
-	set top(y) {
-		this.pos.y = y;
-	}
-
-	set bottom(y) {
-		this.pos.y = y - this.sze.y;
+		return out;
 	}
 
 	interpolate(alpha) {
-		// this.tmp.x = this.pos.x * alpha + this.pre.x * (1 - alpha);
-		// this.tmp.y = this.pos.y * alpha + this.pre.y * (1 - alpha);
-
 		this.tmp = this.pos.mlts(alpha).add(this.pre.mlts(1 - alpha));
-	}
-
-	draw(buf) {
-		buf.fillStyle = "red";
-		buf.fillRect(this.tmp.x, this.tmp.y, this.sze.x, this.sze.y);
 	}
 
 	applyPhysics(gravity, friction) {
@@ -78,8 +59,11 @@ class Entity {
 class Character extends Entity {
 	constructor(x, y, width, height) {
 		super(x, y, width, height);
+		this.type = "char";
 		this.inputs = undefined;
 		this.canJump = false;
+		this.jump1 = false;
+		this.jump2 = false;
 
 		// friction but in the air
 		this.airDrag = 0.95;
@@ -87,7 +71,7 @@ class Character extends Entity {
 		this.speed;
 		this.gndSpeed = 5;
 		this.airSpeed = 0.5;
-		this.jmpSpeed = 20;
+		this.jmpSpeed = 32;
 
 		// for sprites
 		this.mirrored = false;
@@ -95,7 +79,8 @@ class Character extends Entity {
 	}
 
 	draw(buf) {
-		if(!this.mirrored) buf.drawImage(this.sprite.img, 0, 0, this.sprite.img.width, this.sprite.img.height, this.tmp.x, this.tmp.y, this.sprite.width, this.sprite.height);
+		if (!this.mirrored)
+			buf.drawImage(this.sprite.img, 0, 0, this.sprite.img.width, this.sprite.img.height, this.tmp.x, this.tmp.y, this.sprite.width, this.sprite.height);
 		else {
 			buf.save();
 			buf.translate(this.tmp.x + this.sze.x, this.tmp.y);
@@ -103,6 +88,18 @@ class Character extends Entity {
 			buf.drawImage(this.sprite.img, 0, 0, this.sprite.img.width, this.sprite.img.height, 0, 0, this.sprite.width, this.sprite.height);
 			buf.restore();
 		}
+
+		if (world.debug) {
+			buf.strokeStyle = "#FFFFFF";
+			let aabb = this.boundingBox;
+			buf.strokeRect(aabb.pos.x, aabb.pos.y, aabb.sze.x, aabb.sze.y);
+		}
+	}
+
+	resetJumps() {
+		this.canJump = true;
+		this.jump1 = false;
+		this.jump2 = false;
 	}
 
 	update(gravity, friction) {
@@ -113,17 +110,20 @@ class Character extends Entity {
 		if (this.inputs.left.down) this.vel.x -= this.speed;
 		if (this.inputs.right.down) this.vel.x += this.speed;
 		if (this.inputs.jump.pressed && this.canJump) {
-			this.vel.y -= this.jmpSpeed;
-			this.canJump = false;
+			this.vel.y = -this.jmpSpeed;
+
+			if (!this.jump1) this.jump1 = true;
+			else if (!this.jump2) {
+				this.jump2 = true;
+				this.canJump = false;
+			}
 		}
 
 		this.applyPhysics(gravity, this.canJump ? friction : this.airDrag);
 
-		if(Math.abs(this.vel.x) < 0.02) this.vel.x = 0;
+		if (Math.abs(this.vel.x) < 0.02) this.vel.x = 0;
 
 		this.mirrored = this.vel.x < 0 ? true : this.vel.x > 0 ? false : this.mirrored;
-		
-		this.pos = this.pos.add(this.vel);
 	}
 }
 
@@ -143,13 +143,15 @@ class World {
 		this.friction = 0.7;
 
 		this.collider = new Collider();
-		this.player1 = new Character(0, 0, 30, 80);
+		this.player1 = new Character(0, 0, 80, 200);
 		this.players = [this.player1];
 		this.entities = [];
+		this.collisionBoxes = [new Rect(new Vec(540, 450), new Vec(200, 30)), new Rect(new Vec(450, 540), new Vec(30, 200))];
 
 		// set initialised in engine.js
 		this.inputcont = undefined;
 		this.collideViewport = true;
+		this.debug = false;
 	}
 
 	initInputs(inputcont) {
@@ -167,6 +169,10 @@ class World {
 			e.interpolate(alpha);
 			e.draw(this.buf);
 		}
+
+		for (let c of this.collisionBoxes) {
+			c.draw(this.buf);
+		}
 	}
 
 	update() {
@@ -174,23 +180,26 @@ class World {
 			if (this.collideViewport) {
 				p.update(this.gravity, this.friction);
 
-				this.collider.collide(p, this.level);
+				this.collider.collide(p, this.collisionBoxes);
+				p.pos = p.pos.add(p.vel);
 
-				if (p.right > this.width) {
-					p.right = this.width;
-					p.vel.x = 0;
-				} else if (p.left < 0) {
-					p.left = 0;
-					p.vel.x = 0;
-				}
+				if (world.collideViewport) {
+					if (p.right > this.width) {
+						p.right = this.width;
+						p.vel.x = 0;
+					} else if (p.left < 0) {
+						p.left = 0;
+						p.vel.x = 0;
+					}
 
-				if (p.bottom > this.height) {
-					p.bottom = this.height;
-					p.vel.y = 0;
-					p.canJump = true;
-				} else if (p.top < 0) {
-					p.top = 0;
-					p.vel.y = 0;
+					if (p.bottom > this.height) {
+						p.bottom = this.height;
+						p.vel.y = 0;
+						p.resetJumps();
+					} else if (p.top < 0) {
+						p.top = 0;
+						p.vel.y = 0;
+					}
 				}
 			}
 		}

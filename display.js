@@ -1,81 +1,81 @@
-class Tileset {
-	constructor(path, onload) {
-		this.images = [];
-		this.tilesize = 0;
-		this.onload = onload;
+// class Tileset {
+// 	constructor(path, onload) {
+// 		this.images = [];
+// 		this.tilesize = 0;
+// 		this.onload = onload;
 
-        this.types = [];
+//         this.types = [];
 
-        this.loadFromFile(path);
-	}
+//         this.loadFromFile(path);
+// 	}
 
-	async loadFromFile(path) {
-		const json = await (await fetch(path)).json();
-		this.types = json.types;
-		this.tilesize = json.tilesize;
-		this.images = [];
+// 	async loadFromFile(path) {
+// 		const json = await (await fetch(path)).json();
+// 		this.types = json.types;
+// 		this.tilesize = json.tilesize;
+// 		this.images = [];
 
-        let images = json.images;
-        let total = images.length;
-        let count = 0;
-		for (let i in images) {
-            this.images.push(new Image());
+//         let images = json.images;
+//         let total = images.length;
+//         let count = 0;
+// 		for (let i in images) {
+//             this.images.push(new Image());
             
-			this.images[i].onload = (_) => {
-                if(++count == total) this.onload();
-            };
+// 			this.images[i].onload = (_) => {
+//                 if(++count == total) this.onload();
+//             };
             
-			this.images[i].src = images[i];
-		}
-	}
-}
+// 			this.images[i].src = images[i];
+// 		}
+// 	}
+// }
 
-class Level {
-	constructor(path, onload) {
-        this.tileset = undefined;
-        this.onload = onload;
-		this.width = 0;
-		this.height = 0;
-		this.data = [];
-		this.ctx = document.createElement("canvas").getContext("2d");
+// class Level {
+// 	constructor(path, onload) {
+//         this.tileset = undefined;
+//         this.onload = onload;
+// 		this.width = 0;
+// 		this.height = 0;
+// 		this.data = [];
+// 		this.ctx = document.createElement("canvas").getContext("2d");
 
-		this.loadFromFile(path);
-	}
+// 		this.loadFromFile(path);
+// 	}
 
-	drawTilesToCanvas() {
-		let ts = this.tilesize;
+// 	drawTilesToCanvas() {
+// 		let ts = this.tilesize;
 
-		this.ctx.canvas.width = ts * this.width;
-		this.ctx.canvas.height = ts * this.height;
+// 		this.ctx.canvas.width = ts * this.width;
+// 		this.ctx.canvas.height = ts * this.height;
 
-		for (let y = 0; y < this.height; y++) {
-			for (let x = 0; x < this.width; x++) {
-				let d = this.data[y * this.width + x];
+// 		for (let y = 0; y < this.height; y++) {
+// 			for (let x = 0; x < this.width; x++) {
+// 				let d = this.data[y * this.width + x];
 
-				// explicitely draw only ts^2 pixels per image, just incase i forget to scale one down or something
-				if (d > -1) this.ctx.drawImage(this.tileset.images[d], 0, 0, ts, ts, ts * x, ts * y, ts, ts);
-			}
-		}
-	}
+// 				// explicitely draw only ts^2 pixels per image, just incase i forget to scale one down or something
+// 				if (d > -1) this.ctx.drawImage(this.tileset.images[d], 0, 0, ts, ts, ts * x, ts * y, ts, ts);
+// 			}
+// 		}
+// 	}
 
-	get tilesize() {
-		return this.tileset.tilesize;
-	}
+// 	get tilesize() {
+// 		return this.tileset.tilesize;
+// 	}
 
-	get image() {
-		return this.ctx.canvas;
-	}
+// 	get image() {
+// 		return this.ctx.canvas;
+// 	}
 
-	async loadFromFile(path) {
-		const json = await (await fetch(path)).json();
-		this.width = json.width;
-		this.height = json.height;
-        this.data = json.data.map((v) => v - 1);
-        this.tsname = json.tileset;
+// 	async loadFromFile(path) {
+// 		const json = await (await fetch(path)).json();
+// 		this.width = json.width;
+// 		this.height = json.height;
+//         this.data = json.data.map((v) => v - 1);
+//         this.tsname = json.tileset;
 
-		this.onload();
-	}
-}
+// 		this.onload();
+// 	}
+// }
 
 class Display {
 	constructor(ctx, buf) {
