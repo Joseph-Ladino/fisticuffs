@@ -48,7 +48,7 @@ class Vec {
 	get mag() {
 		return Math.hypot(this.x, this.y);
 	}
-	get magNoSqrt() {
+	get magSqr() {
 		return this.dot(this);
 	}
 	get unit() {
@@ -179,7 +179,7 @@ class Collider {
 		let normal = new Vec(0, 0);
 
 		if (near.y > near.x) normal.y = l.y < 0 ? 1 : -1;
-		else normal.x = l.x < 0 ? 1 : -1;
+		else if (near.x > near.y) normal.x = l.x < 0 ? 1 : -1;
 
 		out.collision = true;
 		out.nearTime = near_f;
@@ -208,6 +208,7 @@ class Collider {
 		if (entity.vel.x != 0 || entity.vel.y != 0) {
 			for (let i in rects) {
 				let r = Rect.clone(rects[i]);
+				let nextPos = entity.pos.add(entity.vel);
 
 				if (world.debug) {
 					buf.strokeStyle = "#000000";
@@ -220,12 +221,13 @@ class Collider {
 					this.drawVertLines(r.pos.add(r.sze), r);
 
 					buf.setLineDash([]);
+
+					entity.tmp = nextPos;
+					entity.draw(buf);
 				}
 
 				r.pos = r.pos.sub(entity.sze);
 				r.sze = r.sze.add(entity.sze);
-
-				let nextPos = entity.pos.add(entity.vel);
 
 				let res = this.lineRect(entity.pre, nextPos, r);
 

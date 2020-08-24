@@ -143,10 +143,13 @@ class World {
 		this.friction = 0.7;
 
 		this.collider = new Collider();
-		this.player1 = new Character(0, 0, 80, 200);
-		this.players = [this.player1];
+		this.player0 = new Character(0, 0, 80, 200);
+		this.player1 = new Character(80, 0, 80, 200);
+		this.player2 = new Character(160, 0, 80, 200);
+		this.player3 = new Character(240, 0, 80, 200);
+		this.players = {};
 		this.entities = [];
-		this.collisionBoxes = [new Rect(new Vec(540, 450), new Vec(200, 30)), new Rect(new Vec(450, 540), new Vec(30, 200))];
+		this.collisionBoxes = [new Rect(new Vec(450, 540), new Vec(30, 200)), new Rect(new Vec(540, 450), new Vec(200, 30))];
 
 		// set initialised in engine.js
 		this.inputcont = undefined;
@@ -154,13 +157,23 @@ class World {
 		this.debug = false;
 	}
 
-	initInputs(inputcont) {
+	initInputs(inputcont = this.inputcont) {
 		this.inputcont = inputcont;
-		this.player1.inputs = inputcont.p1;
+		this.player0.inputs = inputcont.p0;
+		this.players[0] = this.player0;
+		
+		// never do this again
+		for(let i = 1; i <= 3; i++) {
+			if(inputcont[`p${i}cont`]) {
+				this.players[i] = this[`player${i}`];
+				this.players[i].inputs = inputcont[`p${i}`];
+			} else delete this.players[i];
+		}
 	}
 
 	drawEntities(alpha) {
-		for (let p of this.players) {
+		for (let i in this.players) {
+			let p = this.players[i];
 			p.interpolate(alpha);
 			p.draw(this.buf);
 		}
@@ -176,30 +189,34 @@ class World {
 	}
 
 	update() {
-		for (let p of this.players) {
+		for (let i in this.players) {
+			let p = this.players[i];
+			p.update(this.gravity, this.friction);
+
+			this.test = this.collisionBoxes[0];
+			this.sortedBoxes = Array.from(this.collisionBoxes);
+			this.sortedBoxes.sort((a, b) => p.pos.sub(a.pos).magSqr - p.pos.sub(b.pos).magSqr);
+
+			this.collider.collide(p, this.sortedBoxes);
+
+			p.pos = p.pos.add(p.vel);
+
 			if (this.collideViewport) {
-				p.update(this.gravity, this.friction);
+				if (p.right > this.width) {
+					p.right = this.width;
+					p.vel.x = 0;
+				} else if (p.left < 0) {
+					p.left = 0;
+					p.vel.x = 0;
+				}
 
-				this.collider.collide(p, this.collisionBoxes);
-				p.pos = p.pos.add(p.vel);
-
-				if (world.collideViewport) {
-					if (p.right > this.width) {
-						p.right = this.width;
-						p.vel.x = 0;
-					} else if (p.left < 0) {
-						p.left = 0;
-						p.vel.x = 0;
-					}
-
-					if (p.bottom > this.height) {
-						p.bottom = this.height;
-						p.vel.y = 0;
-						p.resetJumps();
-					} else if (p.top < 0) {
-						p.top = 0;
-						p.vel.y = 0;
-					}
+				if (p.bottom > this.height) {
+					p.bottom = this.height;
+					p.vel.y = 0;
+					p.resetJumps();
+				} else if (p.top < 0) {
+					p.top = 0;
+					p.vel.y = 0;
 				}
 			}
 		}
